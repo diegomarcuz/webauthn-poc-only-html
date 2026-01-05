@@ -1,0 +1,1196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAuthn POC - Passkey Demo</title>
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a24;
+            --accent: #6366f1;
+            --accent-hover: #818cf8;
+            --success: #22c55e;
+            --error: #ef4444;
+            --warning: #f59e0b;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #2d2d3a;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            min-height: 100vh;
+        }
+
+        @media (max-width: 900px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-radius: 16px;
+            padding: 2rem;
+            border: 1px solid var(--border);
+        }
+
+        h1 {
+            font-size: 1.75rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 2rem;
+        }
+
+        .section {
+            margin-bottom: 2rem;
+        }
+
+        .section-title {
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent);
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+
+        input[type="text"],
+        input[type="email"] {
+            width: 100%;
+            padding: 0.875rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-size: 0.95rem;
+            transition: all 0.2s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none !important;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .btn-group .btn {
+            flex: 1;
+        }
+
+        .credentials-list {
+            margin-top: 1.5rem;
+        }
+
+        .credential-item {
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid var(--border);
+        }
+
+        .credential-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .credential-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .credential-badge {
+            font-size: 0.7rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--accent);
+        }
+
+        .credential-meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .credential-transports {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .transport-tag {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            background: var(--bg-secondary);
+            color: var(--text-secondary);
+        }
+
+        .btn-delete {
+            background: transparent;
+            border: none;
+            color: var(--error);
+            cursor: pointer;
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .btn-delete:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        /* Debug Console */
+        .debug-panel {
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 4rem);
+        }
+
+        .debug-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .debug-title {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        .debug-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .debug-actions button {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .debug-actions button:hover {
+            color: var(--text-primary);
+            border-color: var(--accent);
+        }
+
+        .debug-console {
+            flex: 1;
+            background: #0d0d12;
+            border-radius: 10px;
+            padding: 1rem;
+            overflow-y: auto;
+            font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+            font-size: 0.8rem;
+            border: 1px solid var(--border);
+        }
+
+        .log-entry {
+            margin-bottom: 0.75rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .log-time {
+            color: var(--text-secondary);
+            font-size: 0.7rem;
+        }
+
+        .log-level {
+            font-size: 0.65rem;
+            padding: 0.15rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .log-level.info {
+            background: rgba(99, 102, 241, 0.2);
+            color: var(--accent);
+        }
+
+        .log-level.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: var(--success);
+        }
+
+        .log-level.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: var(--error);
+        }
+
+        .log-level.warning {
+            background: rgba(245, 158, 11, 0.2);
+            color: var(--warning);
+        }
+
+        .log-message {
+            color: var(--text-primary);
+            word-break: break-word;
+        }
+
+        .log-data {
+            margin-top: 0.5rem;
+            background: var(--bg-secondary);
+            padding: 0.75rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+        }
+
+        .log-data .key {
+            color: #a78bfa;
+        }
+
+        .log-data .string {
+            color: #86efac;
+        }
+
+        .log-data .number {
+            color: #fcd34d;
+        }
+
+        .log-data .boolean {
+            color: #f472b6;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 2rem;
+            color: var(--text-secondary);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Status indicator */
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            font-size: 0.85rem;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.error {
+            background: var(--error);
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Options toggle */
+        .options-toggle {
+            display: flex;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 0.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .option-btn {
+            flex: 1;
+            padding: 0.6rem 1rem;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: all 0.2s;
+        }
+
+        .option-btn.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .option-btn:hover:not(.active) {
+            color: var(--text-primary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Left Panel: Actions -->
+        <div class="panel">
+            <h1>🔐 WebAuthn POC</h1>
+            <p class="subtitle">Test Passkey registration and cross-platform authentication</p>
+
+            <div class="status-bar" id="statusBar">
+                <span class="status-dot" id="statusDot"></span>
+                <span id="statusText">WebAuthn is supported</span>
+            </div>
+
+            <!-- Registration Section -->
+            <div class="section">
+                <div class="section-title">Register New Passkey</div>
+                
+                <div class="input-group">
+                    <label for="username">Username</label>
+                    <input type="text" id="username" placeholder="john.doe" value="demo_user">
+                </div>
+
+                <div class="input-group">
+                    <label for="displayName">Display Name</label>
+                    <input type="text" id="displayName" placeholder="John Doe" value="Demo User">
+                </div>
+
+                <div class="section-title" style="margin-top: 1.5rem;">Authenticator Type</div>
+                <div class="options-toggle">
+                    <button class="option-btn active" data-value="platform" onclick="setAuthenticatorType('platform')">
+                        📱 This Device
+                    </button>
+                    <button class="option-btn" data-value="cross-platform" onclick="setAuthenticatorType('cross-platform')">
+                        🔗 Cross-Platform
+                    </button>
+                </div>
+                <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                    <strong>This Device:</strong> TouchID/FaceID local<br>
+                    <strong>Cross-Platform:</strong> Register on mobile, use on desktop
+                </p>
+
+                <button class="btn btn-primary" onclick="registerPasskey()">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 5v14M5 12h14"/>
+                    </svg>
+                    Register Passkey
+                </button>
+            </div>
+
+            <!-- Authentication Section -->
+            <div class="section">
+                <div class="section-title">Authenticate</div>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="authenticateWithPasskey()">
+                        🔑 Login with Passkey
+                    </button>
+                    <button class="btn btn-secondary" onclick="authenticateCrossPlatform()">
+                        📲 Use Phone
+                    </button>
+                </div>
+            </div>
+
+            <!-- Stored Credentials -->
+            <div class="section">
+                <div class="section-title">Stored Credentials</div>
+                <div id="credentialsList" class="credentials-list">
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                        <p>No credentials registered yet</p>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="clearAllCredentials()" style="margin-top: 1rem;">
+                🗑️ Clear All Credentials
+            </button>
+        </div>
+
+        <!-- Right Panel: Debug Console -->
+        <div class="panel debug-panel">
+            <div class="debug-header">
+                <span class="debug-title">🖥️ Debug Console</span>
+                <div class="debug-actions">
+                    <button onclick="copyLogs()">📋 Copy</button>
+                    <button onclick="clearLogs()">🧹 Clear</button>
+                </div>
+            </div>
+            <div class="debug-console" id="debugConsole">
+                <div class="empty-state">
+                    <p>Logs will appear here...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // Configuration
+        // ==========================================
+        let authenticatorType = 'platform';
+        const STORAGE_KEY = 'webauthn_credentials';
+        
+        // ==========================================
+        // Utility Functions
+        // ==========================================
+        
+        // Convert ArrayBuffer to Base64
+        function bufferToBase64(buffer) {
+            return btoa(String.fromCharCode(...new Uint8Array(buffer)));
+        }
+        
+        // Convert Base64 to ArrayBuffer
+        function base64ToBuffer(base64) {
+            const binary = atob(base64);
+            const buffer = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) {
+                buffer[i] = binary.charCodeAt(i);
+            }
+            return buffer;
+        }
+        
+        // Generate random challenge
+        function generateChallenge() {
+            const challenge = new Uint8Array(32);
+            crypto.getRandomValues(challenge);
+            return challenge;
+        }
+        
+        // Generate user ID
+        function generateUserId() {
+            const userId = new Uint8Array(16);
+            crypto.getRandomValues(userId);
+            return userId;
+        }
+
+        // Format timestamp
+        function formatTime() {
+            return new Date().toLocaleTimeString('en-US', { 
+                hour12: false, 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit',
+                fractionalSecondDigits: 3 
+            });
+        }
+
+        // Syntax highlight JSON
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            return json
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                    let cls = 'number';
+                    if (/^"/.test(match)) {
+                        if (/:$/.test(match)) {
+                            cls = 'key';
+                        } else {
+                            cls = 'string';
+                        }
+                    } else if (/true|false/.test(match)) {
+                        cls = 'boolean';
+                    }
+                    return '<span class="' + cls + '">' + match + '</span>';
+                });
+        }
+
+        // ==========================================
+        // Logging Functions
+        // ==========================================
+        
+        const logs = [];
+
+        function log(level, message, data = null) {
+            const entry = { time: formatTime(), level, message, data };
+            logs.push(entry);
+            renderLogs();
+            console.log(`[${level.toUpperCase()}] ${message}`, data || '');
+        }
+
+        function renderLogs() {
+            const console = document.getElementById('debugConsole');
+            if (logs.length === 0) {
+                console.innerHTML = '<div class="empty-state"><p>Logs will appear here...</p></div>';
+                return;
+            }
+
+            console.innerHTML = logs.map(entry => `
+                <div class="log-entry">
+                    <div class="log-header">
+                        <span class="log-time">${entry.time}</span>
+                        <span class="log-level ${entry.level}">${entry.level}</span>
+                    </div>
+                    <div class="log-message">${entry.message}</div>
+                    ${entry.data ? `<div class="log-data">${syntaxHighlight(entry.data)}</div>` : ''}
+                </div>
+            `).reverse().join('');
+        }
+
+        function clearLogs() {
+            logs.length = 0;
+            renderLogs();
+        }
+
+        function copyLogs() {
+            const text = logs.map(e => 
+                `[${e.time}] [${e.level.toUpperCase()}] ${e.message}${e.data ? '\n' + JSON.stringify(e.data, null, 2) : ''}`
+            ).join('\n\n');
+            navigator.clipboard.writeText(text);
+            log('info', 'Logs copied to clipboard');
+        }
+
+        // ==========================================
+        // Storage Functions
+        // ==========================================
+        
+        function getStoredCredentials() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        function saveCredential(credential) {
+            const credentials = getStoredCredentials();
+            credentials.push(credential);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(credentials));
+            renderCredentials();
+        }
+
+        function deleteCredential(id) {
+            let credentials = getStoredCredentials();
+            credentials = credentials.filter(c => c.id !== id);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(credentials));
+            renderCredentials();
+            log('info', `Credential deleted: ${id.substring(0, 20)}...`);
+        }
+
+        function clearAllCredentials() {
+            localStorage.removeItem(STORAGE_KEY);
+            renderCredentials();
+            log('warning', 'All credentials cleared from localStorage');
+        }
+
+        function renderCredentials() {
+            const container = document.getElementById('credentialsList');
+            const credentials = getStoredCredentials();
+
+            if (credentials.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/>
+                        </svg>
+                        <p>No credentials registered yet</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = credentials.map(cred => `
+                <div class="credential-item">
+                    <div class="credential-header">
+                        <span class="credential-name">${cred.username}</span>
+                        <div>
+                            <span class="credential-badge">${cred.authenticatorType || 'platform'}</span>
+                            <button class="btn-delete" onclick="deleteCredential('${cred.id}')">Delete</button>
+                        </div>
+                    </div>
+                    <div class="credential-meta">
+                        ID: ${cred.id.substring(0, 30)}...<br>
+                        Created: ${new Date(cred.createdAt).toLocaleString()}
+                    </div>
+                    <div class="credential-transports">
+                        ${(cred.transports || []).map(t => `<span class="transport-tag">${t}</span>`).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ==========================================
+        // UI Functions
+        // ==========================================
+        
+        function setAuthenticatorType(type) {
+            authenticatorType = type;
+            document.querySelectorAll('.option-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === type);
+            });
+            log('info', `Authenticator type set to: ${type}`);
+        }
+
+        function checkWebAuthnSupport() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+
+            if (!window.PublicKeyCredential) {
+                statusDot.classList.add('error');
+                statusText.textContent = 'WebAuthn is NOT supported';
+                log('error', 'WebAuthn is not supported in this browser');
+                return false;
+            }
+
+            log('success', 'WebAuthn is supported');
+            
+            // Check for platform authenticator
+            PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable()
+                .then(available => {
+                    if (available) {
+                        log('success', 'Platform authenticator (TouchID/FaceID) is available');
+                    } else {
+                        log('warning', 'No platform authenticator available - cross-platform only');
+                    }
+                });
+
+            return true;
+        }
+
+        // ==========================================
+        // WebAuthn Registration
+        // ==========================================
+        
+        async function registerPasskey() {
+            const username = document.getElementById('username').value;
+            const displayName = document.getElementById('displayName').value;
+
+            if (!username || !displayName) {
+                log('error', 'Please fill in username and display name');
+                return;
+            }
+
+            log('info', '🚀 Starting passkey registration...', {
+                username,
+                displayName,
+                authenticatorType
+            });
+
+            const challenge = generateChallenge();
+            const userId = generateUserId();
+
+            log('info', 'Generated challenge and user ID', {
+                challenge: bufferToBase64(challenge),
+                userId: bufferToBase64(userId)
+            });
+
+            const publicKeyCredentialCreationOptions = {
+                challenge: challenge,
+                rp: {
+                    name: "WebAuthn POC Demo",
+                    id: window.location.hostname
+                },
+                user: {
+                    id: userId,
+                    name: username,
+                    displayName: displayName
+                },
+                pubKeyCredParams: [
+                    { alg: -7, type: "public-key" },   // ES256
+                    { alg: -257, type: "public-key" }  // RS256
+                ],
+                authenticatorSelection: {
+                    authenticatorAttachment: authenticatorType,
+                    userVerification: "required",
+                    residentKey: "required",
+                    requireResidentKey: true
+                },
+                attestation: "direct", // Get full attestation data for device legitimacy
+                timeout: 60000
+            };
+
+            log('info', '📋 Credential creation options', publicKeyCredentialCreationOptions);
+
+            try {
+                log('info', '⏳ Waiting for authenticator response...');
+                
+                const credential = await navigator.credentials.create({
+                    publicKey: publicKeyCredentialCreationOptions
+                });
+
+                log('success', '✅ Credential created successfully!');
+
+                // Parse and log the credential details
+                const credentialData = parseCredential(credential);
+                
+                log('success', '🔑 Credential ID', {
+                    id: credential.id,
+                    rawId: bufferToBase64(credential.rawId),
+                    type: credential.type
+                });
+
+                // Log authenticator data for device legitimacy
+                const response = credential.response;
+                const clientDataJSON = JSON.parse(
+                    new TextDecoder().decode(response.clientDataJSON)
+                );
+
+                log('info', '📄 Client Data JSON', clientDataJSON);
+
+                // Parse attestation object
+                const attestationData = parseAttestationObject(response.attestationObject);
+                log('info', '🔐 Attestation Object (Device Legitimacy)', attestationData);
+
+                // Get available transports
+                const transports = credential.response.getTransports ? 
+                    credential.response.getTransports() : ['internal'];
+                
+                log('info', '🚗 Available Transports', { transports });
+
+                // Store credential
+                const storedCredential = {
+                    id: credential.id,
+                    rawId: bufferToBase64(credential.rawId),
+                    publicKey: bufferToBase64(response.getPublicKey()),
+                    transports: transports,
+                    username: username,
+                    displayName: displayName,
+                    authenticatorType: authenticatorType,
+                    createdAt: new Date().toISOString(),
+                    attestation: {
+                        fmt: attestationData.fmt,
+                        aaguid: attestationData.authData?.aaguid,
+                        credentialIdLength: attestationData.authData?.credentialIdLength,
+                        flags: attestationData.authData?.flags
+                    }
+                };
+
+                saveCredential(storedCredential);
+                log('success', '💾 Credential saved to localStorage', storedCredential);
+
+            } catch (error) {
+                log('error', `❌ Registration failed: ${error.message}`, {
+                    name: error.name,
+                    message: error.message
+                });
+            }
+        }
+
+        // ==========================================
+        // WebAuthn Authentication
+        // ==========================================
+        
+        async function authenticateWithPasskey() {
+            const credentials = getStoredCredentials();
+            
+            if (credentials.length === 0) {
+                log('warning', 'No stored credentials found. Please register first.');
+                return;
+            }
+
+            log('info', '🔓 Starting authentication...');
+
+            const challenge = generateChallenge();
+            log('info', 'Generated authentication challenge', {
+                challenge: bufferToBase64(challenge)
+            });
+
+            const allowCredentials = credentials.map(cred => ({
+                id: base64ToBuffer(cred.rawId),
+                type: 'public-key',
+                transports: cred.transports || ['internal', 'hybrid']
+            }));
+
+            log('info', '📋 Allow credentials list', {
+                count: allowCredentials.length,
+                ids: credentials.map(c => c.id.substring(0, 20) + '...')
+            });
+
+            const publicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                allowCredentials: allowCredentials,
+                userVerification: "required",
+                timeout: 60000
+            };
+
+            log('info', '📋 Authentication options', publicKeyCredentialRequestOptions);
+
+            try {
+                log('info', '⏳ Waiting for authenticator...');
+                
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions
+                });
+
+                log('success', '✅ Authentication successful!');
+
+                // Log assertion details
+                const assertionData = parseAssertion(assertion);
+                log('success', '🎫 Assertion received', assertionData);
+
+                // Parse client data
+                const clientDataJSON = JSON.parse(
+                    new TextDecoder().decode(assertion.response.clientDataJSON)
+                );
+                log('info', '📄 Client Data JSON', clientDataJSON);
+
+                // Parse authenticator data
+                const authData = parseAuthenticatorData(
+                    new Uint8Array(assertion.response.authenticatorData)
+                );
+                log('info', '🔐 Authenticator Data', authData);
+
+                // Find matched credential
+                const matchedCred = credentials.find(c => c.id === assertion.id);
+                if (matchedCred) {
+                    log('success', `👤 Authenticated as: ${matchedCred.username}`, {
+                        displayName: matchedCred.displayName,
+                        authenticatorType: matchedCred.authenticatorType
+                    });
+                }
+
+            } catch (error) {
+                log('error', `❌ Authentication failed: ${error.message}`, {
+                    name: error.name,
+                    message: error.message
+                });
+            }
+        }
+
+        // Cross-platform authentication (use phone to login on desktop)
+        async function authenticateCrossPlatform() {
+            log('info', '📲 Starting cross-platform authentication...');
+            log('info', 'This will show a QR code to scan with your phone');
+
+            const challenge = generateChallenge();
+            log('info', 'Generated authentication challenge', {
+                challenge: bufferToBase64(challenge)
+            });
+
+            // For cross-platform, we don't specify allowCredentials to enable discoverable credentials
+            // This allows using a passkey from another device
+            const publicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                userVerification: "required",
+                timeout: 120000, // 2 minutes for cross-platform
+                // Empty allowCredentials to trigger discoverable credential flow
+                // The browser will show QR code for cross-device auth
+            };
+
+            log('info', '📋 Cross-platform authentication options', {
+                ...publicKeyCredentialRequestOptions,
+                note: 'Empty allowCredentials enables QR code flow for phone authentication'
+            });
+
+            try {
+                log('info', '⏳ Waiting for cross-platform authenticator (scan QR with phone)...');
+                
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions,
+                    mediation: 'optional'
+                });
+
+                log('success', '✅ Cross-platform authentication successful!');
+
+                // Log assertion details
+                const assertionData = parseAssertion(assertion);
+                log('success', '🎫 Assertion from external device', assertionData);
+
+                // Parse client data
+                const clientDataJSON = JSON.parse(
+                    new TextDecoder().decode(assertion.response.clientDataJSON)
+                );
+                log('info', '📄 Client Data JSON (cross-platform)', clientDataJSON);
+
+                // Parse authenticator data
+                const authData = parseAuthenticatorData(
+                    new Uint8Array(assertion.response.authenticatorData)
+                );
+                log('info', '🔐 Authenticator Data (from phone)', authData);
+
+                log('success', '🎉 Successfully authenticated using external device!', {
+                    credentialId: assertion.id.substring(0, 30) + '...',
+                    authenticatorAttachment: assertion.authenticatorAttachment
+                });
+
+            } catch (error) {
+                log('error', `❌ Cross-platform auth failed: ${error.message}`, {
+                    name: error.name,
+                    message: error.message,
+                    hint: 'Make sure Bluetooth is enabled and devices are nearby'
+                });
+            }
+        }
+
+        // ==========================================
+        // Parsing Functions
+        // ==========================================
+        
+        function parseCredential(credential) {
+            return {
+                id: credential.id,
+                rawId: bufferToBase64(credential.rawId),
+                type: credential.type,
+                authenticatorAttachment: credential.authenticatorAttachment
+            };
+        }
+
+        function parseAssertion(assertion) {
+            return {
+                id: assertion.id,
+                rawId: bufferToBase64(assertion.rawId),
+                type: assertion.type,
+                authenticatorAttachment: assertion.authenticatorAttachment,
+                signature: bufferToBase64(assertion.response.signature),
+                userHandle: assertion.response.userHandle ? 
+                    bufferToBase64(assertion.response.userHandle) : null
+            };
+        }
+
+        function parseAttestationObject(attestationBuffer) {
+            // Simple CBOR-like parsing for attestation object
+            // In production, use a proper CBOR library
+            const attestation = new Uint8Array(attestationBuffer);
+            
+            // Find the authData
+            const authDataStart = findCBORValue(attestation, 'authData');
+            const authData = parseAuthenticatorData(attestation.slice(authDataStart));
+
+            // Try to extract format
+            let fmt = 'unknown';
+            const fmtStart = findCBORString(attestation, 'fmt');
+            if (fmtStart > 0) {
+                fmt = extractString(attestation, fmtStart);
+            }
+
+            return {
+                fmt: fmt,
+                authData: authData,
+                rawLength: attestation.length
+            };
+        }
+
+        function parseAuthenticatorData(authData) {
+            if (authData.length < 37) {
+                return { error: 'AuthData too short' };
+            }
+
+            // First 32 bytes: rpIdHash
+            const rpIdHash = bufferToBase64(authData.slice(0, 32));
+            
+            // Byte 32: flags
+            const flags = authData[32];
+            const flagsDecoded = {
+                userPresent: !!(flags & 0x01),
+                userVerified: !!(flags & 0x04),
+                attestedCredentialData: !!(flags & 0x40),
+                extensionData: !!(flags & 0x80)
+            };
+
+            // Bytes 33-36: signature counter (big-endian)
+            const signCount = new DataView(authData.buffer, authData.byteOffset + 33, 4).getUint32(0);
+
+            let result = {
+                rpIdHash: rpIdHash,
+                flags: flagsDecoded,
+                signCount: signCount
+            };
+
+            // If attestedCredentialData flag is set, parse AAGUID
+            if (flagsDecoded.attestedCredentialData && authData.length >= 55) {
+                const aaguid = bufferToBase64(authData.slice(37, 53));
+                const aaguidFormatted = formatAAGUID(authData.slice(37, 53));
+                const credIdLength = new DataView(authData.buffer, authData.byteOffset + 53, 2).getUint16(0);
+                
+                result.aaguid = aaguidFormatted;
+                result.aaguidRaw = aaguid;
+                result.credentialIdLength = credIdLength;
+            }
+
+            return result;
+        }
+
+        function formatAAGUID(bytes) {
+            // Format AAGUID as UUID string
+            const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+            return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+        }
+
+        // Simple helper to find CBOR-like values (not a full CBOR parser)
+        function findCBORValue(data, key) {
+            const keyBytes = new TextEncoder().encode(key);
+            for (let i = 0; i < data.length - keyBytes.length; i++) {
+                let match = true;
+                for (let j = 0; j < keyBytes.length; j++) {
+                    if (data[i + j] !== keyBytes[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    // Return position after the key + some offset for CBOR structure
+                    return i + keyBytes.length + 1;
+                }
+            }
+            return -1;
+        }
+
+        function findCBORString(data, key) {
+            const keyBytes = new TextEncoder().encode(key);
+            for (let i = 0; i < data.length - keyBytes.length; i++) {
+                let match = true;
+                for (let j = 0; j < keyBytes.length; j++) {
+                    if (data[i + j] !== keyBytes[j]) {
+                        match = false;
+                        break;
+                    }
+                }
+                if (match) {
+                    return i + keyBytes.length;
+                }
+            }
+            return -1;
+        }
+
+        function extractString(data, start) {
+            let end = start;
+            while (end < data.length && data[end] !== 0x66 && data[end] !== 0x67 && data[end] !== 0x68) {
+                end++;
+            }
+            try {
+                return new TextDecoder().decode(data.slice(start, Math.min(end, start + 20)));
+            } catch {
+                return 'unknown';
+            }
+        }
+
+        // ==========================================
+        // Initialize
+        // ==========================================
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            checkWebAuthnSupport();
+            renderCredentials();
+            log('info', '🎬 WebAuthn POC initialized', {
+                hostname: window.location.hostname,
+                protocol: window.location.protocol,
+                userAgent: navigator.userAgent.substring(0, 100) + '...'
+            });
+        });
+    </script>
+</body>
+</html>
+
