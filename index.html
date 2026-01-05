@@ -448,6 +448,68 @@
         .option-btn:hover:not(.active) {
             color: var(--text-primary);
         }
+
+        /* Welcome Message - Let's rock!! */
+        .welcome-message {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(99, 102, 241, 0.15));
+            border: 1px solid var(--success);
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            animation: slideIn 0.4s ease-out, glow 2s ease-in-out infinite;
+        }
+
+        .welcome-message .welcome-icon {
+            font-size: 1.5rem;
+            animation: bounce 1s ease infinite;
+        }
+
+        .welcome-message .welcome-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--success), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .welcome-message .welcome-hint {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-left: auto;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px rgba(34, 197, 94, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.5);
+            }
+        }
+
+        @keyframes bounce {
+            0%, 100% {
+                transform: translateY(0);
+            }
+            50% {
+                transform: translateY(-3px);
+            }
+        }
     </style>
 </head>
 <body>
@@ -462,13 +524,20 @@
                 <span id="statusText">WebAuthn is supported</span>
             </div>
 
+            <!-- Welcome Message (shown when passkeys are available) -->
+            <div id="welcomeMessage" class="welcome-message" style="display: none;">
+                <span class="welcome-icon">🎸</span>
+                <span class="welcome-text">Let's rock!!</span>
+                <span class="welcome-hint">Passkey detected - click email field</span>
+            </div>
+
             <!-- Registration Section -->
             <div class="section">
                 <div class="section-title">Register New Passkey</div>
                 
                 <div class="input-group">
                     <label for="email">E-mail (Identifier)</label>
-                    <input type="email" id="email" placeholder="john.doe@example.com" value="demo@example.com">
+                    <input type="email" id="email" placeholder="john.doe@example.com" value="demo@example.com" autocomplete="username webauthn">
                 </div>
 
                 <div class="input-group">
@@ -766,6 +835,146 @@
                 });
 
             return true;
+        }
+
+        // ==========================================
+        // Conditional UI (Passkey Autofill)
+        // ==========================================
+        
+        let conditionalAbortController = null;
+
+        async function checkConditionalUI() {
+            // Check if Conditional UI is supported
+            if (typeof PublicKeyCredential.isConditionalMediationAvailable !== 'function') {
+                log('warning', 'Conditional UI not supported in this browser');
+                return false;
+            }
+
+            try {
+                const available = await PublicKeyCredential.isConditionalMediationAvailable();
+                
+                if (available) {
+                    log('success', '🎸 Conditional UI is available! Passkey autofill enabled');
+                    showWelcomeMessage();
+                    startConditionalAuthentication();
+                    return true;
+                } else {
+                    log('info', 'Conditional UI check: not available');
+                    return false;
+                }
+            } catch (error) {
+                log('error', `Conditional UI check failed: ${error.message}`);
+                return false;
+            }
+        }
+
+        function showWelcomeMessage() {
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'flex';
+                log('info', "🎸 Let's rock!! - Passkey detected for this site");
+            }
+        }
+
+        function hideWelcomeMessage() {
+            const welcomeMessage = document.getElementById('welcomeMessage');
+            if (welcomeMessage) {
+                welcomeMessage.style.display = 'none';
+            }
+        }
+
+        async function startConditionalAuthentication() {
+            // Abort any existing conditional authentication
+            if (conditionalAbortController) {
+                conditionalAbortController.abort();
+            }
+            
+            conditionalAbortController = new AbortController();
+            
+            const challenge = generateChallenge();
+            
+            log('info', '🔄 Starting conditional authentication (autofill mode)...', {
+                challenge: bufferToBase64(challenge)
+            });
+
+            const publicKeyCredentialRequestOptions = {
+                challenge: challenge,
+                userVerification: "required",
+                timeout: 300000, // 5 minutes for conditional UI
+            };
+
+            try {
+                const assertion = await navigator.credentials.get({
+                    publicKey: publicKeyCredentialRequestOptions,
+                    mediation: 'conditional',
+                    signal: conditionalAbortController.signal
+                });
+
+                // User selected a passkey from autofill!
+                log('success', '✅ Conditional authentication successful!');
+                
+                // Parse and log assertion details
+                const assertionData = parseAssertion(assertion);
+                log('success', '🎫 Assertion received via autofill', assertionData);
+
+                // Parse client data
+                const clientDataJSON = JSON.parse(
+                    new TextDecoder().decode(assertion.response.clientDataJSON)
+                );
+                log('info', '📄 Client Data JSON', clientDataJSON);
+
+                // Parse authenticator data
+                const authData = parseAuthenticatorData(
+                    new Uint8Array(assertion.response.authenticatorData)
+                );
+                log('info', '🔐 Authenticator Data', authData);
+
+                // Find matched credential from stored credentials
+                const credentials = getStoredCredentials();
+                const matchedCred = credentials.find(c => c.id === assertion.id);
+                
+                if (matchedCred) {
+                    log('success', `🎸 Let's rock, ${matchedCred.displayName}!`, {
+                        email: matchedCred.email || matchedCred.username,
+                        displayName: matchedCred.displayName,
+                        authenticatorType: matchedCred.authenticatorType
+                    });
+                    
+                    // Update email field with authenticated user
+                    document.getElementById('email').value = matchedCred.email || matchedCred.username || '';
+                    document.getElementById('displayName').value = matchedCred.displayName || '';
+                } else {
+                    log('success', '🎸 Authenticated via passkey (credential not in local storage)', {
+                        credentialId: assertion.id.substring(0, 30) + '...',
+                        userHandle: assertionData.userHandle
+                    });
+                }
+
+                // Hide welcome message after successful auth
+                hideWelcomeMessage();
+
+            } catch (error) {
+                if (error.name === 'AbortError') {
+                    log('info', 'Conditional authentication was aborted');
+                } else if (error.name === 'NotAllowedError') {
+                    log('info', 'Conditional authentication: user cancelled or no passkey selected');
+                    // Restart conditional authentication
+                    setTimeout(() => startConditionalAuthentication(), 1000);
+                } else {
+                    log('error', `Conditional authentication error: ${error.message}`, {
+                        name: error.name,
+                        message: error.message
+                    });
+                }
+            }
+        }
+
+        function abortConditionalAuthentication() {
+            if (conditionalAbortController) {
+                conditionalAbortController.abort();
+                conditionalAbortController = null;
+                log('info', 'Conditional authentication aborted');
+            }
         }
 
         // ==========================================
@@ -1180,7 +1389,7 @@
         // Initialize
         // ==========================================
         
-        document.addEventListener('DOMContentLoaded', () => {
+        document.addEventListener('DOMContentLoaded', async () => {
             checkWebAuthnSupport();
             renderCredentials();
             log('info', '🎬 WebAuthn POC initialized', {
@@ -1188,6 +1397,9 @@
                 protocol: window.location.protocol,
                 userAgent: navigator.userAgent.substring(0, 100) + '...'
             });
+
+            // Check and start Conditional UI (Passkey Autofill)
+            await checkConditionalUI();
         });
     </script>
 </body>
