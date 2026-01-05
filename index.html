@@ -478,16 +478,20 @@
 
                 <div class="section-title" style="margin-top: 1.5rem;">Authenticator Type</div>
                 <div class="options-toggle">
-                    <button class="option-btn active" data-value="platform" onclick="setAuthenticatorType('platform')">
+                    <button class="option-btn" data-value="platform" onclick="setAuthenticatorType('platform')">
                         📱 This Device
                     </button>
                     <button class="option-btn" data-value="cross-platform" onclick="setAuthenticatorType('cross-platform')">
                         🔗 Cross-Platform
                     </button>
+                    <button class="option-btn active" data-value="any" onclick="setAuthenticatorType('any')">
+                        🌐 Any
+                    </button>
                 </div>
                 <p style="font-size: 0.75rem; color: var(--text-secondary); margin-bottom: 1rem;">
                     <strong>This Device:</strong> TouchID/FaceID local<br>
-                    <strong>Cross-Platform:</strong> Register on mobile, use on desktop
+                    <strong>Cross-Platform:</strong> Register on mobile, use on desktop<br>
+                    <strong>Any:</strong> Let browser show all options
                 </p>
 
                 <button class="btn btn-primary" onclick="registerPasskey()">
@@ -547,7 +551,7 @@
         // ==========================================
         // Configuration
         // ==========================================
-        let authenticatorType = 'platform';
+        let authenticatorType = 'any';
         const STORAGE_KEY = 'webauthn_credentials';
         
         // ==========================================
@@ -922,6 +926,18 @@
                 userId: bufferToBase64(userId)
             });
 
+            // Build authenticatorSelection based on type
+            const authenticatorSelection = {
+                userVerification: "required",
+                residentKey: "required",
+                requireResidentKey: true
+            };
+            
+            // Only add authenticatorAttachment if not 'any'
+            if (authenticatorType !== 'any') {
+                authenticatorSelection.authenticatorAttachment = authenticatorType;
+            }
+
             const publicKeyCredentialCreationOptions = {
                 challenge: challenge,
                 rp: {
@@ -937,12 +953,7 @@
                     { alg: -7, type: "public-key" },   // ES256
                     { alg: -257, type: "public-key" }  // RS256
                 ],
-                authenticatorSelection: {
-                    authenticatorAttachment: authenticatorType,
-                    userVerification: "required",
-                    residentKey: "required",
-                    requireResidentKey: true
-                },
+                authenticatorSelection: authenticatorSelection,
                 attestation: "direct", // Get full attestation data for device legitimacy
                 timeout: 60000
             };
