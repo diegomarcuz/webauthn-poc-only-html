@@ -467,8 +467,8 @@
                 <div class="section-title">Register New Passkey</div>
                 
                 <div class="input-group">
-                    <label for="username">Username</label>
-                    <input type="text" id="username" placeholder="john.doe" value="demo_user">
+                    <label for="email">E-mail (Identifier)</label>
+                    <input type="email" id="email" placeholder="john.doe@example.com" value="demo@example.com">
                 </div>
 
                 <div class="input-group">
@@ -504,9 +504,6 @@
                 <div class="btn-group">
                     <button class="btn btn-secondary" onclick="authenticateWithPasskey()">
                         🔑 Login with Passkey
-                    </button>
-                    <button class="btn btn-secondary" onclick="authenticateCrossPlatform()">
-                        📲 Use Phone
                     </button>
                 </div>
             </div>
@@ -715,13 +712,14 @@
             container.innerHTML = credentials.map(cred => `
                 <div class="credential-item">
                     <div class="credential-header">
-                        <span class="credential-name">${cred.username}</span>
+                        <span class="credential-name">${cred.displayName}</span>
                         <div>
                             <span class="credential-badge">${cred.authenticatorType || 'platform'}</span>
                             <button class="btn-delete" onclick="deleteCredential('${cred.id}')">Delete</button>
                         </div>
                     </div>
                     <div class="credential-meta">
+                        E-mail: ${cred.email || cred.username || 'N/A'}<br>
                         ID: ${cred.id.substring(0, 30)}...<br>
                         Created: ${new Date(cred.createdAt).toLocaleString()}
                     </div>
@@ -775,16 +773,16 @@
         // ==========================================
         
         async function registerPasskey() {
-            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
             const displayName = document.getElementById('displayName').value;
 
-            if (!username || !displayName) {
-                log('error', 'Please fill in username and display name');
+            if (!email || !displayName) {
+                log('error', 'Please fill in e-mail and display name');
                 return;
             }
 
             log('info', '🚀 Starting passkey registration...', {
-                username,
+                email,
                 displayName,
                 authenticatorType
             });
@@ -805,7 +803,7 @@
                 },
                 user: {
                     id: userId,
-                    name: username,
+                    name: email,
                     displayName: displayName
                 },
                 pubKeyCredParams: [
@@ -866,7 +864,7 @@
                     rawId: bufferToBase64(credential.rawId),
                     publicKey: bufferToBase64(response.getPublicKey()),
                     transports: transports,
-                    username: username,
+                    email: email,
                     displayName: displayName,
                     authenticatorType: authenticatorType,
                     createdAt: new Date().toISOString(),
@@ -956,7 +954,8 @@
                 // Find matched credential
                 const matchedCred = credentials.find(c => c.id === assertion.id);
                 if (matchedCred) {
-                    log('success', `👤 Authenticated as: ${matchedCred.username}`, {
+                    log('success', `👤 Authenticated as: ${matchedCred.displayName}`, {
+                        email: matchedCred.email || matchedCred.username,
                         displayName: matchedCred.displayName,
                         authenticatorType: matchedCred.authenticatorType
                     });
