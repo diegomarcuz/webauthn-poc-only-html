@@ -897,6 +897,9 @@
         // ==========================================
         
         async function registerPasskey() {
+            // Abort any pending conditional authentication before registering
+            abortConditionalAuthentication();
+
             const email = document.getElementById('email').value;
             const displayName = document.getElementById('displayName').value;
 
@@ -1016,6 +1019,9 @@
         // ==========================================
         
         async function authenticateWithPasskey() {
+            // Abort any pending conditional authentication before authenticating
+            abortConditionalAuthentication();
+
             const credentials = getStoredCredentials();
             
             if (credentials.length === 0) {
