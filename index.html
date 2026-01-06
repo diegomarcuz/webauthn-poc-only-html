@@ -288,16 +288,18 @@
             background: #0d0d12;
             border-radius: 10px;
             padding: 1rem;
-            overflow-y: auto;
+            overflow: auto;
             font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
             font-size: 0.8rem;
             border: 1px solid var(--border);
+            max-width: 100%;
         }
 
         .log-entry {
             margin-bottom: 0.75rem;
             padding-bottom: 0.75rem;
             border-bottom: 1px solid var(--border);
+            overflow-x: auto;
         }
 
         .log-entry:last-child {
@@ -346,7 +348,8 @@
 
         .log-message {
             color: var(--text-primary);
-            word-break: break-word;
+            white-space: nowrap;
+            overflow-x: auto;
         }
 
         .log-data {
@@ -355,9 +358,10 @@
             padding: 0.75rem;
             border-radius: 6px;
             overflow-x: auto;
-            white-space: pre-wrap;
+            white-space: pre;
             color: var(--text-secondary);
             font-size: 0.75rem;
+            max-width: 100%;
         }
 
         .log-data .key {
